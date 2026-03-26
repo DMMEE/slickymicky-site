@@ -1,99 +1,137 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-export const runtime = "nodejs";
+const OPENERS = [
+  "{name}, someone in {suburb} keeps noticing you more than they planned to.",
+  "You have been on someone's mind in {suburb}, {name}.",
+  "{name}, you leave something behind in {suburb} that people keep returning to.",
+  "Someone around {suburb} is feeling a little too drawn to you, {name}.",
+  "{name}, there is a reason people in {suburb} keep looking twice.",
+  "You have that effect on people in {suburb}, {name}.",
+  "{name}, someone in {suburb} is definitely more curious than they should be.",
+  "There is someone in {suburb} thinking about you again, {name}.",
+];
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY!,
-});
+const SECOND_LINES = [
+  "You can usually feel it before they say anything.",
+  "They are trying to play it cool, but they are not hiding it well.",
+  "The attention suits you more than you let on.",
+  "You make it very easy for people to want a little more.",
+  "You have been harder to forget than they expected.",
+  "Some people are better at staring than speaking.",
+  "You already know the kind of energy this is.",
+  "It is not always obvious, but it is rarely accidental.",
+];
 
-const FREE_COOKIE = "usedFreeMessage";
-const CREDITS_COOKIE = "paidCredits";
-const SUB_COOKIE = "isSubscriber";
+function pick<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
+
+function fill(template: string, name: string, suburb: string) {
+  return template.replaceAll("{name}", name).replaceAll("{suburb}", suburb);
+}
 
 export async function POST(req: NextRequest) {
   try {
-    if (!process.env.OPENAI_API_KEY) {
+    const { name, suburb } = await req.json();
+
+    if (!name || !suburb) {
       return NextResponse.json(
-        { message: "Missing OPENAI_API_KEY in env." },
+        { error: "Name and suburb are required." },
+        { status: 400 }
+      );
+    }
+
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY" },
         { status: 500 }
       );
     }
 
-    const { name, suburb, question } = await req.json();
+    const openai = new OpenAI({ apiKey });
 
-    const isSubscriber = req.cookies.get(SUB_COOKIE)?.value === "true";
-    const usedFree = req.cookies.get(FREE_COOKIE)?.value === "true";
-    const paidCredits = Number(req.cookies.get(CREDITS_COOKIE)?.value || "0");
-
-    if (!isSubscriber && usedFree && paidCredits <= 0) {
-      return NextResponse.json({
-        message:
-          "You’ve used your free message. Buy another for $2 or subscribe.",
-      });
-    }
-
-    const roastAllowed = Math.random() < 0.2;
-    const tonePick = ["soft", "nostalgic", "ominous", "warm-then-dark", "cheeky"][
-      Math.floor(Math.random() * 5)
-    ];
+    const seedOpening = fill(pick(OPENERS), name, suburb);
+    const seedSecond = pick(SECOND_LINES);
 
     const prompt = `
-You write short, emotionally charged, eerie messages for a paid entertainment site.
+You are writing a short seductive entertainment message for a fictional website called Slicky Micky.
+
+Goal:
+Make the message feel personal, magnetic, and slightly eerie, like someone is noticing them, thinking about them, or wanting them.
 
 Hard rules:
-- 1–2 sentences only.
-- 10–28 words.
-- Must include the user's name and suburb naturally.
-- Emotional core is mandatory (longing, hope, guilt, nostalgia, relief, desire).
-- Add a subtle eerie twist, but keep it emotional.
-- Vary wording each time; avoid repetitive openings.
-- ${roastAllowed ? "Add a LIGHT playful roast at the end (teasing, not cruel)." : "No roast."}
-- No threats, no slurs, no protected traits, no 'as an AI', no disclaimers.
+- Write exactly 2 short sentences.
+- Total length: 16 to 26 words.
+- Use the user's first name naturally.
+- Use the suburb naturally.
+- The message should feel smooth, alluring, intimate, and addictive.
+- Focus on themes like attention, attraction, curiosity, desire, being noticed, being wanted, or being hard to forget.
+- Keep it subtle.
+- Do not sound aggressive, threatening, obsessive, or scary.
+- Do not mention watching, stalking, secrets, surveillance, hacking, or private information.
+- Do not claim real facts.
+- No emojis.
+- No hashtags.
+- No poetry.
+- No mention of AI.
+- Output only the final message.
 
-Tone variant: ${tonePick}
+Tone:
+- seductive
+- intriguing
+- confident
+- slightly eerie
+- emotionally sharp
+- short and commercially catchy
 
-Name: ${name || "Friend"}
-Suburb: ${suburb || "your area"}
-User message: ${question || ""}
+Use these as inspiration, but rewrite naturally:
+Sentence 1 vibe: ${seedOpening}
+Sentence 2 vibe: ${seedSecond}
+
+Name: ${name}
+Suburb: ${suburb}
 `;
 
-    const ai = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.95,
-      input: prompt,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 1.25,
+      max_tokens: 80,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You write short, seductive, emotionally sticky entertainment lines that make people feel noticed, wanted, and hard to forget.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
     });
 
-    const text = ai.output_text?.trim() || "Something is watching your silence… try again.";
+    const message = response.choices[0]?.message?.content?.trim();
 
-    const res = NextResponse.json({ message: text });
-
-    // Consume free/paid credit (subscribers consume nothing)
-    if (!isSubscriber) {
-      if (!usedFree) {
-        res.cookies.set(FREE_COOKIE, "true", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30,
-          path: "/",
-        });
-      } else if (paidCredits > 0) {
-        res.cookies.set(CREDITS_COOKIE, String(paidCredits - 1), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30,
-          path: "/",
-        });
-      }
+    if (!message) {
+      return NextResponse.json(
+        { error: "No message was generated." },
+        { status: 500 }
+      );
     }
 
-    return res;
-  } catch (err) {
-    console.error("Generate error:", err);
+    return NextResponse.json({ message });
+  } catch (error) {
+    console.error("GENERATE ERROR:", error);
+
     return NextResponse.json(
-      { message: "Something went wrong." },
+      {
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to generate message.",
+      },
       { status: 500 }
     );
   }

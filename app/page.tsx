@@ -1,308 +1,377 @@
 ﻿"use client";
 
-import { useEffect, useMemo, useState } from "react";
-
-type ResponseCategory =
-  | "mystery"
-  | "admiration"
-  | "suspicion"
-  | "ego"
-  | "eerie"
-  | "roast";
-
-type MessageTier = "free" | "paid" | "subscription";
+import { useEffect, useState } from "react";
 
 type AccessState = {
   freeUsed: boolean;
-  paidUnlocks: number;
-  subscriptionActive: boolean;
+  hasOneOffAccess: boolean;
+  hasSubscription: boolean;
 };
-
-const liveUsers = [
-  "Sarah • Brisbane",
-  "Daniel • Melbourne",
-  "Emily • Sydney",
-  "Josh • Perth",
-  "Mia • Adelaide",
-  "Luca • Geelong",
-  "Sophie • Richmond",
-  "Noah • Ballarat",
-  "Ava • London",
-  "Leo • Toronto",
-  "Mason • Auckland",
-  "Chloe • Singapore",
-];
-
-const freeMessages = [
-  "{name}, someone noticed something about you recently.",
-  "{name}, someone has been thinking about you more than they expected to.",
-  "{name}, someone realised something about you the other day.",
-  "{name}, someone has replayed a moment they had with you a few times now.",
-  "{name}, someone has been quietly paying attention to you.",
-  "{name}, someone noticed the way you reacted to something recently.",
-];
-
-const paidMessages = [
-  "{name}, the person behind this keeps replaying a small moment with you.",
-  "{name}, someone noticed something subtle about you.",
-  "{name}, someone has been watching you quietly.",
-  "{name}, the person thinking about you feels closer than you realise.",
-  "{name}, someone has built a version of you in their mind.",
-];
-
-const subMessages = [
-  "{name}, the person behind this feels drawn to you more than they expected.",
-  "{name}, someone has gone from curiosity to something deeper.",
-  "{name}, someone has been imagining what it would be like to talk to you.",
-  "{name}, someone keeps noticing you even when they try not to.",
-];
-
-const conversionHooks = [
-  "There’s more to this. The next message gets closer.",
-  "You’re only seeing part of it. The next message explains why.",
-  "Someone has been noticing you longer than you realise.",
-  "You might already have someone in mind.",
-  "This connection isn’t random.",
-  "The next message gets more direct.",
-];
-
-function randomFrom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function formatText(value: string) {
-  return value
-    .trim()
-    .split(" ")
-    .filter(Boolean)
-    .map(
-      (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()
-    )
-    .join(" ");
-}
-
-function buildResponse(name: string, tier: MessageTier) {
-  const formattedName = formatText(name);
-
-  const pool =
-    tier === "free"
-      ? freeMessages
-      : tier === "paid"
-      ? paidMessages
-      : subMessages;
-
-  let message = randomFrom(pool).replaceAll("{name}", formattedName);
-
-  const hook = randomFrom(conversionHooks);
-
-  return `${message} ${hook}`;
-}
 
 export default function HomePage() {
   const [name, setName] = useState("");
   const [suburb, setSuburb] = useState("");
-  const [thinking, setThinking] = useState(false);
-  const [response, setResponse] = useState("");
-  const [typed, setTyped] = useState("");
-  const [rolling, setRolling] = useState(liveUsers[0]);
-  const [isHydrated, setIsHydrated] = useState(false);
+  const [message, setMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [showPaywall, setShowPaywall] = useState(false);
 
   const [access, setAccess] = useState<AccessState>({
     freeUsed: false,
-    paidUnlocks: 0,
-    subscriptionActive: false,
+    hasOneOffAccess: false,
+    hasSubscription: false,
   });
 
-  const canSubmit = useMemo(() => {
-    return name.trim().length > 0 && suburb.trim().length > 0;
-  }, [name, suburb]);
-
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRolling(randomFrom(liveUsers));
-    }, 2500);
-    return () => clearInterval(interval);
-  }, []);
+    const saved = localStorage.getItem("slicky_access");
 
-  async function refreshAccess() {
-    const res = await fetch("/api/access-status", { cache: "no-store" });
-    const data = await res.json();
-    setAccess({
-      freeUsed: Boolean(data.freeUsed),
-      paidUnlocks: Number(data.paidUnlocks || 0),
-      subscriptionActive: Boolean(data.subscriptionActive),
-    });
-  }
-
-  useEffect(() => {
-    refreshAccess().finally(() => setIsHydrated(true));
+    if (saved) {
+      try {
+        setAccess(JSON.parse(saved));
+      } catch {
+        localStorage.removeItem("slicky_access");
+      }
+    }
   }, []);
 
   useEffect(() => {
-    if (!response) return;
+    localStorage.setItem("slicky_access", JSON.stringify(access));
+  }, [access]);
 
-    setTyped("");
-    let i = 0;
+  async function handleGenerate() {
+    if (loading) return;
 
-    const interval = setInterval(() => {
-      i++;
-      setTyped(response.slice(0, i));
+    if (!name.trim() || !suburb.trim()) {
+      alert("Enter your name and suburb first.");
+      return;
+    }
 
-      if (i >= response.length) clearInterval(interval);
-    }, 16);
+    const allowed =
+      !access.freeUsed || access.hasOneOffAccess || access.hasSubscription;
 
-    return () => clearInterval(interval);
-  }, [response]);
+    if (!allowed) {
+      setShowPaywall(true);
+      return;
+    }
 
-  const canReveal =
-    !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
+    setLoading(true);
+    setMessage("");
+    setShowPaywall(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+    try {
+      const res = await fetch("/api/generate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          suburb: suburb.trim(),
+        }),
+      });
 
-    if (!canSubmit || !canReveal || !isHydrated) return;
+      const data = await res.json();
 
-    let tier: MessageTier = "free";
-
-    if (access.subscriptionActive) tier = "subscription";
-    else if (access.freeUsed && access.paidUnlocks > 0) tier = "paid";
-
-    setThinking(true);
-    setResponse("");
-    setTyped("");
-
-    const built = buildResponse(name, tier);
-
-    setTimeout(async () => {
-      setThinking(false);
-      setResponse(built);
-
-      if (tier === "free") {
-        await fetch("/api/use-free-reading", { method: "POST" });
-      } else if (tier === "paid") {
-        await fetch("/api/use-paid-unlock", { method: "POST" });
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate message.");
       }
 
-      await refreshAccess();
-    }, 1200);
+      setMessage(data.message);
+
+      if (!access.freeUsed && !access.hasOneOffAccess && !access.hasSubscription) {
+        setAccess((prev) => ({
+          ...prev,
+          freeUsed: true,
+        }));
+      }
+
+      if (access.hasOneOffAccess && !access.hasSubscription) {
+        setAccess((prev) => ({
+          ...prev,
+          hasOneOffAccess: false,
+        }));
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function handleCheckout(type: "single" | "sub") {
-    const res = await fetch("/api/checkout", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ type, name, suburb }),
-    });
+    try {
+      const res = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          type,
+          name: name.trim(),
+          suburb: suburb.trim(),
+        }),
+      });
 
-    const data = await res.json();
+      const data = await res.json();
 
-    if (data.url) {
+      if (!res.ok || !data.url) {
+        throw new Error(data.error || "Checkout failed.");
+      }
+
       window.location.href = data.url;
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Checkout failed.");
     }
   }
 
   return (
-    <main className="page-shell">
+    <main
+      style={{
+        minHeight: "100vh",
+        background:
+          "radial-gradient(circle at top, #1a1a1a 0%, #0d0d0d 45%, #050505 100%)",
+        color: "#f5f5f5",
+        padding: "40px 20px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <div
+        style={{
+          width: "100%",
+          maxWidth: "760px",
+          border: "1px solid rgba(255,255,255,0.12)",
+          background: "rgba(255,255,255,0.04)",
+          borderRadius: "22px",
+          padding: "36px",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
+          backdropFilter: "blur(8px)",
+        }}
+      >
+        <div style={{ textAlign: "center", marginBottom: "28px" }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: "12px",
+              letterSpacing: "0.28em",
+              textTransform: "uppercase",
+              opacity: 0.68,
+            }}
+          >
+            Entertainment Reading
+          </p>
 
-      <div className="live-users">
-        <div className="live-title">Live Users</div>
-        <div className="live-row">
-          <span className="live-dot" />
-          <span className="live-name">{rolling}</span>
+          <h1
+            style={{
+              margin: "12px 0 10px",
+              fontSize: "52px",
+              lineHeight: 1,
+              letterSpacing: "0.03em",
+            }}
+          >
+            Slicky Micky
+          </h1>
+
+          <p
+            style={{
+              margin: "0 auto",
+              maxWidth: "520px",
+              fontSize: "18px",
+              lineHeight: 1.6,
+              color: "rgba(255,255,255,0.82)",
+            }}
+          >
+            Enter your name and suburb. Get one unsettling little message that
+            feels a bit too close.
+          </p>
         </div>
-      </div>
-
-      <section className="hero-card">
-
-        <p className="brand-top">Slicky Micky</p>
-
-        <h1 className="hero-title">Slide into my DMs</h1>
-
-        <p className="hero-subtitle">
-          Slicky knows you, more than you think
-        </p>
-
-        <form className="form-stack" onSubmit={handleSubmit}>
-
-          <div className="field">
-            <input
-              type="text"
-              placeholder="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-          </div>
-
-          <div className="field">
-            <input
-              type="text"
-              placeholder="Suburb"
-              value={suburb}
-              onChange={(e) => setSuburb(e.target.value)}
-            />
-          </div>
-
-          {isHydrated && canReveal && (
-            <button className="reveal-button" type="submit">
-              {thinking ? "Revealing..." : "Reveal My Message"}
-            </button>
-          )}
-
-        </form>
-
-        <div className="message-wrap">
-
-          {thinking && (
-            <div className="message-box">Slicky is thinking...</div>
-          )}
-
-          {!thinking && typed && (
-            <div className="message-box">
-              {typed}
-              <span className="cursor" />
-            </div>
-          )}
-
-        </div>
-
-        {access.freeUsed &&
-          !thinking &&
-          !access.subscriptionActive &&
-          access.paidUnlocks === 0 && (
-            <div className="paywall">
-
-              <button
-                className="unlock-button"
-                onClick={() => handleCheckout("single")}
-              >
-                Unlock Another Message — $2
-              </button>
-
-              <button
-                className="subscribe-button"
-                onClick={() => handleCheckout("sub")}
-              >
-                Subscribe for Unlimited Access
-              </button>
-
-            </div>
-          )}
 
         <div
           style={{
-            marginTop: "40px",
-            fontSize: "12px",
-            color: "#777",
-            textAlign: "center",
+            display: "grid",
+            gap: "14px",
+            marginTop: "24px",
           }}
         >
-          This website is for entertainment purposes only
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Your name"
+            style={{
+              width: "100%",
+              padding: "16px 18px",
+              fontSize: "16px",
+              borderRadius: "14px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.06)",
+              color: "#fff",
+              outline: "none",
+            }}
+          />
+
+          <input
+            value={suburb}
+            onChange={(e) => setSuburb(e.target.value)}
+            placeholder="Your suburb"
+            style={{
+              width: "100%",
+              padding: "16px 18px",
+              fontSize: "16px",
+              borderRadius: "14px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.06)",
+              color: "#fff",
+              outline: "none",
+            }}
+          />
+
+          <button
+            onClick={handleGenerate}
+            disabled={loading}
+            style={{
+              marginTop: "4px",
+              padding: "16px 18px",
+              fontSize: "16px",
+              fontWeight: 600,
+              borderRadius: "14px",
+              border: "none",
+              cursor: loading ? "default" : "pointer",
+              background: loading
+                ? "rgba(255,255,255,0.18)"
+                : "linear-gradient(135deg, #f4f4f4 0%, #bdbdbd 100%)",
+              color: "#090909",
+              transition: "0.2s ease",
+            }}
+          >
+            {loading ? "Reading you..." : "Reveal My Message"}
+          </button>
         </div>
 
-      </section>
+        {!message && !showPaywall && (
+          <div
+            style={{
+              marginTop: "16px",
+              textAlign: "center",
+              fontSize: "13px",
+              color: "rgba(255,255,255,0.55)",
+            }}
+          >
+            First message is free.
+          </div>
+        )}
 
+        {message && (
+          <div
+            style={{
+              marginTop: "28px",
+              padding: "22px",
+              borderRadius: "18px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.05)",
+            }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: "28px",
+                lineHeight: 1.45,
+                textAlign: "center",
+                color: "#ffffff",
+              }}
+            >
+              {message}
+            </p>
+          </div>
+        )}
+
+        {showPaywall && (
+          <div
+            style={{
+              marginTop: "28px",
+              padding: "24px",
+              borderRadius: "18px",
+              border: "1px solid rgba(255,255,255,0.12)",
+              background: "rgba(255,255,255,0.05)",
+            }}
+          >
+            <p
+              style={{
+                margin: "0 0 10px",
+                fontSize: "22px",
+                fontWeight: 600,
+                textAlign: "center",
+              }}
+            >
+              You felt that one, didn’t you?
+            </p>
+
+            <p
+              style={{
+                margin: "0 auto 20px",
+                maxWidth: "520px",
+                fontSize: "15px",
+                lineHeight: 1.6,
+                textAlign: "center",
+                color: "rgba(255,255,255,0.76)",
+              }}
+            >
+              Your free message is gone. Unlock another one, or get ongoing
+              access and keep going.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "12px",
+              }}
+            >
+              <button
+                onClick={() => handleCheckout("single")}
+                style={{
+                  padding: "16px",
+                  borderRadius: "14px",
+                  border: "1px solid rgba(255,255,255,0.12)",
+                  background: "rgba(255,255,255,0.08)",
+                  color: "#fff",
+                  cursor: "pointer",
+                  fontSize: "15px",
+                  fontWeight: 600,
+                }}
+              >
+                Buy 1 More Message
+              </button>
+
+              <button
+                onClick={() => handleCheckout("sub")}
+                style={{
+                  padding: "16px",
+                  borderRadius: "14px",
+                  border: "none",
+                  background: "linear-gradient(135deg, #ffffff 0%, #d9d9d9 100%)",
+                  color: "#090909",
+                  cursor: "pointer",
+                  fontSize: "15px",
+                  fontWeight: 700,
+                }}
+              >
+                Start Subscription
+              </button>
+            </div>
+          </div>
+        )}
+
+        <p
+          style={{
+            marginTop: "30px",
+            textAlign: "center",
+            fontSize: "12px",
+            color: "rgba(255,255,255,0.48)",
+          }}
+        >
+          This website is for entertainment purposes only.
+        </p>
+      </div>
     </main>
   );
 }
