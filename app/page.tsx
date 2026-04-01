@@ -12,6 +12,7 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [suburb, setSuburb] = useState("");
   const [message, setMessage] = useState("");
+  const [displayedText, setDisplayedText] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
 
@@ -21,6 +22,7 @@ export default function HomePage() {
     hasSubscription: false,
   });
 
+  // Load access from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("slicky_access");
 
@@ -33,9 +35,30 @@ export default function HomePage() {
     }
   }, []);
 
+  // Save access
   useEffect(() => {
     localStorage.setItem("slicky_access", JSON.stringify(access));
   }, [access]);
+
+  // TYPEWRITER EFFECT
+  useEffect(() => {
+    setDisplayedText("");
+
+    if (!message) return;
+
+    let index = 0;
+
+    const interval = setInterval(() => {
+      index++;
+      setDisplayedText(message.slice(0, index));
+
+      if (index >= message.length) {
+        clearInterval(interval);
+      }
+    }, 30);
+
+    return () => clearInterval(interval);
+  }, [message]);
 
   async function handleGenerate() {
     if (loading) return;
@@ -145,67 +168,28 @@ export default function HomePage() {
           borderRadius: "22px",
           padding: "36px",
           boxShadow: "0 20px 60px rgba(0,0,0,0.45)",
-          backdropFilter: "blur(8px)",
         }}
       >
         <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <p
-            style={{
-              margin: 0,
-              fontSize: "12px",
-              letterSpacing: "0.28em",
-              textTransform: "uppercase",
-              opacity: 0.68,
-            }}
-          >
-            Entertainment Reading
-          </p>
-
-          <h1
-            style={{
-              margin: "12px 0 10px",
-              fontSize: "52px",
-              lineHeight: 1,
-              letterSpacing: "0.03em",
-            }}
-          >
+          <h1 style={{ fontSize: "48px", marginBottom: "10px" }}>
             Slicky Micky
           </h1>
-
-          <p
-            style={{
-              margin: "0 auto",
-              maxWidth: "520px",
-              fontSize: "18px",
-              lineHeight: 1.6,
-              color: "rgba(255,255,255,0.82)",
-            }}
-          >
-            Enter your name and suburb. Get one unsettling little message that
-            feels a bit too close.
+          <p style={{ opacity: 0.8 }}>
+            Someone is noticing you more than you think.
           </p>
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gap: "14px",
-            marginTop: "24px",
-          }}
-        >
+        <div style={{ display: "grid", gap: "12px" }}>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="Your name"
             style={{
-              width: "100%",
-              padding: "16px 18px",
-              fontSize: "16px",
-              borderRadius: "14px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.06)",
+              padding: "14px",
+              borderRadius: "10px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "transparent",
               color: "#fff",
-              outline: "none",
             }}
           />
 
@@ -214,14 +198,11 @@ export default function HomePage() {
             onChange={(e) => setSuburb(e.target.value)}
             placeholder="Your suburb"
             style={{
-              width: "100%",
-              padding: "16px 18px",
-              fontSize: "16px",
-              borderRadius: "14px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.06)",
+              padding: "14px",
+              borderRadius: "10px",
+              border: "1px solid rgba(255,255,255,0.2)",
+              background: "transparent",
               color: "#fff",
-              outline: "none",
             }}
           />
 
@@ -229,146 +210,48 @@ export default function HomePage() {
             onClick={handleGenerate}
             disabled={loading}
             style={{
-              marginTop: "4px",
-              padding: "16px 18px",
-              fontSize: "16px",
-              fontWeight: 600,
-              borderRadius: "14px",
+              padding: "14px",
+              borderRadius: "10px",
               border: "none",
-              cursor: loading ? "default" : "pointer",
-              background: loading
-                ? "rgba(255,255,255,0.18)"
-                : "linear-gradient(135deg, #f4f4f4 0%, #bdbdbd 100%)",
-              color: "#090909",
-              transition: "0.2s ease",
+              cursor: "pointer",
+              background: "#ffffff",
+              color: "#000",
+              fontWeight: 600,
             }}
           >
-            {loading ? "Reading you..." : "Reveal My Message"}
+            {loading ? "Reading..." : "Reveal Message"}
           </button>
         </div>
 
-        {!message && !showPaywall && (
+        {displayedText && (
           <div
             style={{
-              marginTop: "16px",
+              marginTop: "30px",
+              fontSize: "26px",
               textAlign: "center",
-              fontSize: "13px",
-              color: "rgba(255,255,255,0.55)",
+              minHeight: "80px",
             }}
           >
-            First message is free.
-          </div>
-        )}
-
-        {message && (
-          <div
-            style={{
-              marginTop: "28px",
-              padding: "22px",
-              borderRadius: "18px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.05)",
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontSize: "28px",
-                lineHeight: 1.45,
-                textAlign: "center",
-                color: "#ffffff",
-              }}
-            >
-              {message}
-            </p>
+            {displayedText}
           </div>
         )}
 
         {showPaywall && (
-          <div
-            style={{
-              marginTop: "28px",
-              padding: "24px",
-              borderRadius: "18px",
-              border: "1px solid rgba(255,255,255,0.12)",
-              background: "rgba(255,255,255,0.05)",
-            }}
-          >
-            <p
-              style={{
-                margin: "0 0 10px",
-                fontSize: "22px",
-                fontWeight: 600,
-                textAlign: "center",
-              }}
-            >
-              You felt that one, didn’t you?
-            </p>
+          <div style={{ marginTop: "30px", textAlign: "center" }}>
+            <p>You felt that one, didn’t you?</p>
 
-            <p
-              style={{
-                margin: "0 auto 20px",
-                maxWidth: "520px",
-                fontSize: "15px",
-                lineHeight: 1.6,
-                textAlign: "center",
-                color: "rgba(255,255,255,0.76)",
-              }}
-            >
-              Your free message is gone. Unlock another one, or get ongoing
-              access and keep going.
-            </p>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: "12px",
-              }}
-            >
-              <button
-                onClick={() => handleCheckout("single")}
-                style={{
-                  padding: "16px",
-                  borderRadius: "14px",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  background: "rgba(255,255,255,0.08)",
-                  color: "#fff",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: 600,
-                }}
-              >
-                Buy 1 More Message
+            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
+              <button onClick={() => handleCheckout("single")}>
+                Buy 1 More
               </button>
-
-              <button
-                onClick={() => handleCheckout("sub")}
-                style={{
-                  padding: "16px",
-                  borderRadius: "14px",
-                  border: "none",
-                  background: "linear-gradient(135deg, #ffffff 0%, #d9d9d9 100%)",
-                  color: "#090909",
-                  cursor: "pointer",
-                  fontSize: "15px",
-                  fontWeight: 700,
-                }}
-              >
-                Start Subscription
+              <button onClick={() => handleCheckout("sub")}>
+                Subscribe
               </button>
             </div>
           </div>
         )}
 
-        <p
-          style={{
-            marginTop: "30px",
-            textAlign: "center",
-            fontSize: "12px",
-            color: "rgba(255,255,255,0.48)",
-          }}
-        >
+        <p style={{ marginTop: "40px", fontSize: "12px", opacity: 0.5 }}>
           This website is for entertainment purposes only.
         </p>
       </div>
