@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import OpenAI from "openai";
 import Stripe from "stripe";
+import OpenAI from "openai";
 
 export async function POST(req: NextRequest) {
   try {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.checkout.sessions.retrieve(sessionId);
 
-    if (!session || session.payment_status !== "paid") {
+    if (session.payment_status !== "paid") {
       return NextResponse.json(
         { error: "Payment not completed" },
         { status: 400 }
@@ -43,15 +43,14 @@ export async function POST(req: NextRequest) {
     }
 
     const prompt = `
-Write one short, direct, slightly eerie and flirty message.
+Write one short, simple, slightly eerie and flirty message.
 
 Rules:
-- 1 or 2 sentences only
-- 12–20 words total
-- Natural, simple, blush-inducing
-- Focus on someone noticing them, thinking about them, or wanting them
-- No poetry
-- No mention of AI
+- 1 or 2 sentences
+- 12 to 20 words
+- direct and natural
+- no poetry
+- no mention of AI
 
 Name: ${typeof name === "string" ? name : ""}
 Suburb: ${typeof suburb === "string" ? suburb : ""}
@@ -65,7 +64,7 @@ Suburb: ${typeof suburb === "string" ? suburb : ""}
         {
           role: "system",
           content:
-            "You write short, flirty, eerie, addictive lines that feel personal and real.",
+            "You write short, direct, slightly flirty lines that feel personal and real.",
         },
         {
           role: "user",
@@ -76,14 +75,10 @@ Suburb: ${typeof suburb === "string" ? suburb : ""}
 
     const message = response.choices[0]?.message?.content?.trim();
 
-    if (!message) {
-      return NextResponse.json(
-        { error: "No message generated" },
-        { status: 500 }
-      );
-    }
-
-    return NextResponse.json({ success: true, message });
+    return NextResponse.json({
+      success: true,
+      message: message || "",
+    });
   } catch (error) {
     console.error("VERIFY PAYMENT ERROR:", error);
 
