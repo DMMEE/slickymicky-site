@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
 
     const secretKey = process.env.STRIPE_SECRET_KEY;
     const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_BASE_URL || "https://slickymicky-site-r5ox.vercel.app/";
     const priceOneTime = process.env.STRIPE_PRICE_ONE_TIME;
     const priceSub = process.env.STRIPE_PRICE_SUB;
 
@@ -41,11 +41,8 @@ export async function POST(req: NextRequest) {
 
     const stripe = new Stripe(secretKey);
 
-    const mode: Stripe.Checkout.SessionCreateParams.Mode =
-      type === "single" ? "payment" : "subscription";
-
     const session = await stripe.checkout.sessions.create({
-      mode,
+      mode: type === "single" ? "payment" : "subscription",
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${baseUrl}/success?type=${type}&session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}/cancel`,
