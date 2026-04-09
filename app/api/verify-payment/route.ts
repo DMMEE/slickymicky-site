@@ -1,84 +1,98 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
-
-const FREE_COOKIE = "usedFreeMessage";
-const CREDITS_COOKIE = "paidCredits";
-const SUB_COOKIE = "isSubscriber";
+import Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, suburb, question } = await req.json();
+    const { sessionId, name, suburb } = await req.json();
 
-    const isSubscriber = req.cookies.get(SUB_COOKIE)?.value === "true";
-    const usedFree = !!req.cookies.get(FREE_COOKIE);
-    const paidCredits = Number(req.cookies.get(CREDITS_COOKIE)?.value || "0");
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const stripeKey = process.env.STRIPE_SECRET_KEY;
 
-    // Access control
-    if (!isSubscriber && usedFree && paidCredits <= 0) {
-      return NextResponse.json({
-        message: "You’ve used your free message. Buy another for $2 or subscribe.",
-      });
+    if (!openaiKey) {
+      return NextResponse.json(
+        { error: "Missing OPENAI_API_KEY" },
+        { status: 500 }
+      );
     }
 
-    const roastAllowed = Math.random() < 0.2;
-    const tonePick = ["soft", "nostalgic", "ominous", "warm-then-dark", "cheeky"][
-      Math.floor(Math.random() * 5)
-    ];
+    if (!stripeKey) {
+      return NextResponse.json(
+        { error: "Missing STRIPE_SECRET_KEY" },
+        { status: 500 }
+      );
+    }
+
+    if (!sessionId) {
+      return NextResponse.json(
+        { error: "Missing sessionId" },
+        { status: 400 }
+      );
+    }
+
+    const stripe = new Stripe(stripeKey);
+    const openai = new OpenAI({ apiKey: openaiKey });
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    if (!session || session.payment_status !== "paid") {
+      return NextResponse.json(
+        { error: "Payment not completed" },
+        { status: 400 }
+      );
+    }
 
     const prompt = `
-You write short, emotionally charged, eerie messages for a paid entertainment site.
+Write one short, direct, slightly eerie and flirty message.
 
-Hard rules:
-- 1–2 sentences only.
-- 10–28 words.
-- Must include the user's name and suburb naturally.
-- Emotional core is mandatory (longing, hope, guilt, nostalgia, relief, desire).
-- Add a subtle eerie twist, but keep it emotional.
-- Vary wording each time; avoid repetitive openings.
-- ${roastAllowed ? "Add a LIGHT playful roast at the end (teasing, not cruel)." : "No roast."}
-- No threats, no slurs, no protected traits, no 'as an AI', no disclaimers.
+Rules:
+- 1 or 2 sentences only
+- 12–20 words total
+- Natural, simple, blush-inducing
+- Focus on someone noticing them, thinking about them, or wanting them
+- No poetry
+- No mention of AI
 
-Tone variant: ${tonePick}
-
-Name: ${name || "Friend"}
-Suburb: ${suburb || "your area"}
-User message: ${question || ""}
+Name: ${typeof name === "string" ? name : ""}
+Suburb: ${typeof suburb === "string" ? suburb : ""}
 `;
 
-    const ai = await openai.responses.create({
-      model: "gpt-4.1-mini",
-      temperature: 0.95,
-      input: prompt,
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 1.1,
+      max_tokens: 60,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You write short, flirty, eerie, addictive lines that feel personal and real.",
+        },
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
     });
 
-    const res = NextResponse.json({ message: ai.output_text });
+    const message = response.choices[0]?.message?.content?.trim();
 
-    // Consume a free or paid credit (subscribers consume nothing)
-    if (!isSubscriber) {
-      if (!usedFree) {
-        res.cookies.set(FREE_COOKIE, "true", {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30,
-          path: "/",
-        });
-      } else if (paidCredits > 0) {
-        res.cookies.set(CREDITS_COOKIE, String(paidCredits - 1), {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
-          maxAge: 60 * 60 * 24 * 30,
-          path: "/",
-        });
-      }
+    if (!message) {
+      return NextResponse.json(
+        { error: "No message generated" },
+        { status: 500 }
+      );
     }
 
-    return res;
-  } catch (err) {
-    console.error(err);
-    return NextResponse.json({ message: "Something went wrong." }, { status: 500 });
+    return NextResponse.json({ success: true, message });
+  } catch (error) {
+    console.error("VERIFY PAYMENT ERROR:", error);
+
+    return NextResponse.json(
+      {
+        error:
+          error instanceof Error ? error.message : "Verification failed",
+      },
+      { status: 500 }
+    );
   }
 }
