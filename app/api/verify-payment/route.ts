@@ -73,11 +73,11 @@ Suburb: ${typeof suburb === "string" ? suburb : ""}
       ],
     });
 
-    const message = response.choices[0]?.message?.content?.trim();
+    const message = response.choices[0]?.message?.content?.trim() || "";
 
     return NextResponse.json({
       success: true,
-      message: message || "",
+      message,
     });
   } catch (error) {
     console.error("VERIFY PAYMENT ERROR:", error);
