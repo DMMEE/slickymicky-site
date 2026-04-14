@@ -8,7 +8,7 @@ export default function SuccessPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function confirmAndRedirect() {
+    async function confirmPayment() {
       try {
         const params = new URLSearchParams(window.location.search);
         const sessionId = params.get("session_id");
@@ -47,7 +47,7 @@ export default function SuccessPage() {
       }
     }
 
-    confirmAndRedirect();
+    confirmPayment();
 
     return () => {
       cancelled = true;
