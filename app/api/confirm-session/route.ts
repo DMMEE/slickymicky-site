@@ -54,7 +54,11 @@ export async function POST(req: NextRequest) {
       maxAge: ONE_YEAR_SECONDS,
     });
 
-    return NextResponse.json({ ok: true, type: "single", paidUnlocks: next });
+    return NextResponse.json({
+      ok: true,
+      type: "single",
+      paidUnlocks: next,
+    });
   } catch (error) {
     console.error("CONFIRM SESSION ERROR:", error);
 

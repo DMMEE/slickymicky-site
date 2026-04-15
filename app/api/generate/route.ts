@@ -62,16 +62,15 @@ You are writing a short, simple, slightly eerie and flirty message.
 Rules:
 - 1 or 2 sentences only
 - 12–20 words total
-- Very direct, very natural
+- Very direct and natural
 - No poetic language
-- No fluff words like "energy", "presence", "vibe"
+- No fluff
 - No explanations
 - No emojis
 - No hashtags
 - No mention of AI
 - Do not sound creepy or aggressive
 - Focus on attention, attraction, being noticed, or being wanted
-- Make it feel real, like something someone could actually think
 - Make it slightly blush-inducing
 
 Use this as inspiration, but rewrite naturally:

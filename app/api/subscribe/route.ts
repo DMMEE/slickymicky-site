@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
 
     const secretKey = process.env.STRIPE_SECRET_KEY;
     const baseUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+      process.env.NEXT_PUBLIC_SITE_URL || "https://slickymicky-site-r5ox.vercel.app/";
     const priceSub = process.env.STRIPE_PRICE_SUB;
 
     if (!secretKey) {
