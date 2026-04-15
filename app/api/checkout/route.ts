@@ -7,7 +7,7 @@ export async function POST(req: NextRequest) {
   try {
     const { type, name, suburb } = await req.json();
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://slickymicky-site-poek.vercel.app";
     const priceOneTime = process.env.STRIPE_PRICE_ONE_TIME;
     const priceSub = process.env.STRIPE_PRICE_SUB;
 
