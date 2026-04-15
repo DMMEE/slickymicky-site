@@ -1,11 +1,11 @@
 ﻿"use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 type AccessState = {
   freeUsed: boolean;
-  hasOneOffAccess: boolean;
-  hasSubscription: boolean;
+  paidUnlocks: number;
+  subscriptionActive: boolean;
 };
 
 export default function HomePage() {
@@ -15,32 +15,41 @@ export default function HomePage() {
   const [displayedText, setDisplayedText] = useState("");
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const [access, setAccess] = useState<AccessState>({
     freeUsed: false,
-    hasOneOffAccess: false,
-    hasSubscription: false,
+    paidUnlocks: 0,
+    subscriptionActive: false,
   });
 
-  // Load access from localStorage
-  useEffect(() => {
-    const saved = localStorage.getItem("slicky_access");
+  const canSubmit = useMemo(() => {
+    return name.trim().length > 0 && suburb.trim().length > 0;
+  }, [name, suburb]);
 
-    if (saved) {
-      try {
-        setAccess(JSON.parse(saved));
-      } catch {
-        localStorage.removeItem("slicky_access");
-      }
+  async function refreshAccess() {
+    try {
+      const res = await fetch("/api/access-status", { cache: "no-store" });
+      const data = await res.json();
+
+      setAccess({
+        freeUsed: Boolean(data.freeUsed),
+        paidUnlocks: Number(data.paidUnlocks || 0),
+        subscriptionActive: Boolean(data.subscriptionActive),
+      });
+    } catch {
+      setAccess({
+        freeUsed: false,
+        paidUnlocks: 0,
+        subscriptionActive: false,
+      });
     }
+  }
+
+  useEffect(() => {
+    refreshAccess().finally(() => setIsHydrated(true));
   }, []);
 
-  // Save access
-  useEffect(() => {
-    localStorage.setItem("slicky_access", JSON.stringify(access));
-  }, [access]);
-
-  // TYPEWRITER EFFECT
   useEffect(() => {
     setDisplayedText("");
 
@@ -49,7 +58,7 @@ export default function HomePage() {
     let index = 0;
 
     const interval = setInterval(() => {
-      index++;
+      index += 1;
       setDisplayedText(message.slice(0, index));
 
       if (index >= message.length) {
@@ -69,7 +78,7 @@ export default function HomePage() {
     }
 
     const allowed =
-      !access.freeUsed || access.hasOneOffAccess || access.hasSubscription;
+      !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
 
     if (!allowed) {
       setShowPaywall(true);
@@ -100,19 +109,13 @@ export default function HomePage() {
 
       setMessage(data.message);
 
-      if (!access.freeUsed && !access.hasOneOffAccess && !access.hasSubscription) {
-        setAccess((prev) => ({
-          ...prev,
-          freeUsed: true,
-        }));
+      if (!access.freeUsed) {
+        await fetch("/api/use-free-reading", { method: "POST" });
+      } else if (access.paidUnlocks > 0 && !access.subscriptionActive) {
+        await fetch("/api/use-paid-unlock", { method: "POST" });
       }
 
-      if (access.hasOneOffAccess && !access.hasSubscription) {
-        setAccess((prev) => ({
-          ...prev,
-          hasOneOffAccess: false,
-        }));
-      }
+      await refreshAccess();
     } catch (error) {
       alert(error instanceof Error ? error.message : "Something went wrong.");
     } finally {
@@ -145,6 +148,9 @@ export default function HomePage() {
       alert(error instanceof Error ? error.message : "Checkout failed.");
     }
   }
+
+  const canReveal =
+    !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
 
   return (
     <main
@@ -206,21 +212,23 @@ export default function HomePage() {
             }}
           />
 
-          <button
-            onClick={handleGenerate}
-            disabled={loading}
-            style={{
-              padding: "14px",
-              borderRadius: "10px",
-              border: "none",
-              cursor: "pointer",
-              background: "#ffffff",
-              color: "#000",
-              fontWeight: 600,
-            }}
-          >
-            {loading ? "Reading..." : "Reveal Message"}
-          </button>
+          {isHydrated && canReveal && (
+            <button
+              onClick={handleGenerate}
+              disabled={loading || !canSubmit}
+              style={{
+                padding: "14px",
+                borderRadius: "10px",
+                border: "none",
+                cursor: "pointer",
+                background: "#ffffff",
+                color: "#000",
+                fontWeight: 600,
+              }}
+            >
+              {loading ? "Reading..." : "Reveal Message"}
+            </button>
+          )}
         </div>
 
         {displayedText && (
@@ -236,20 +244,47 @@ export default function HomePage() {
           </div>
         )}
 
-        {showPaywall && (
-          <div style={{ marginTop: "30px", textAlign: "center" }}>
-            <p>You felt that one, didn’t you?</p>
-
-            <div style={{ display: "flex", gap: "10px", justifyContent: "center" }}>
-              <button onClick={() => handleCheckout("single")}>
-                Buy 1 More
-              </button>
-              <button onClick={() => handleCheckout("sub")}>
-                Subscribe
-              </button>
+        {!displayedText &&
+          isHydrated &&
+          access.freeUsed &&
+          !access.subscriptionActive &&
+          access.paidUnlocks > 0 && (
+            <div
+              style={{
+                marginTop: "30px",
+                textAlign: "center",
+                fontSize: "18px",
+                opacity: 0.9,
+              }}
+            >
+              You have {access.paidUnlocks} paid message
+              {access.paidUnlocks === 1 ? "" : "s"} ready to reveal.
             </div>
-          </div>
-        )}
+          )}
+
+        {showPaywall &&
+          isHydrated &&
+          !access.subscriptionActive &&
+          access.paidUnlocks === 0 && (
+            <div style={{ marginTop: "30px", textAlign: "center" }}>
+              <p>You felt that one, didn’t you?</p>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: "10px",
+                  justifyContent: "center",
+                }}
+              >
+                <button onClick={() => handleCheckout("single")}>
+                  Buy 1 More
+                </button>
+                <button onClick={() => handleCheckout("sub")}>
+                  Subscribe
+                </button>
+              </div>
+            </div>
+          )}
 
         <p style={{ marginTop: "40px", fontSize: "12px", opacity: 0.5 }}>
           This website is for entertainment purposes only.
