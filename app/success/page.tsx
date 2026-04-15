@@ -39,7 +39,7 @@ export default function SuccessPage() {
 
         setTimeout(() => {
           if (!cancelled) {
-            window.location.href = "/";
+            window.location.href = "/?refreshAccess=1";
           }
         }, 1200);
       } catch {
