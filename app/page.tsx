@@ -58,7 +58,7 @@ export default function HomePage() {
     let index = 0;
 
     const interval = setInterval(() => {
-      index += 1;
+      index++;
       setDisplayedText(message.slice(0, index));
 
       if (index >= message.length) {
@@ -69,6 +69,9 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [message]);
 
+  const allowed =
+    !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
+
   async function handleGenerate() {
     if (loading) return;
 
@@ -76,9 +79,6 @@ export default function HomePage() {
       alert("Enter your name and suburb first.");
       return;
     }
-
-    const allowed =
-      !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
 
     if (!allowed) {
       setShowPaywall(true);
@@ -149,9 +149,6 @@ export default function HomePage() {
     }
   }
 
-  const canReveal =
-    !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
-
   return (
     <main
       style={{
@@ -212,7 +209,7 @@ export default function HomePage() {
             }}
           />
 
-          {isHydrated && canReveal && (
+          {isHydrated && (
             <button
               onClick={handleGenerate}
               disabled={loading || !canSubmit}
@@ -220,10 +217,11 @@ export default function HomePage() {
                 padding: "14px",
                 borderRadius: "10px",
                 border: "none",
-                cursor: "pointer",
+                cursor: loading || !canSubmit ? "not-allowed" : "pointer",
                 background: "#ffffff",
                 color: "#000",
                 fontWeight: 600,
+                opacity: loading || !canSubmit ? 0.7 : 1,
               }}
             >
               {loading ? "Reading..." : "Reveal Message"}
@@ -254,11 +252,9 @@ export default function HomePage() {
                 marginTop: "30px",
                 textAlign: "center",
                 fontSize: "18px",
-                opacity: 0.9,
               }}
             >
-              You have {access.paidUnlocks} paid message
-              {access.paidUnlocks === 1 ? "" : "s"} ready to reveal.
+              Your next message is unlocked. Reveal it now.
             </div>
           )}
 
