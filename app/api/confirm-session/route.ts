@@ -28,7 +28,6 @@ export async function POST(req: NextRequest) {
 
     const cookieStore = await cookies();
 
-    // Prevent duplicate unlocks if success page refreshes
     const confirmedRaw =
       cookieStore.get(CONFIRMED_SESSIONS_COOKIE)?.value || "";
     const confirmedSessions = confirmedRaw ? confirmedRaw.split(",") : [];

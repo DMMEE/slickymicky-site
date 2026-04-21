@@ -58,7 +58,7 @@ export default function HomePage() {
     let index = 0;
 
     const interval = setInterval(() => {
-      index++;
+      index += 1;
       setDisplayedText(message.slice(0, index));
 
       if (index >= message.length) {
@@ -68,6 +68,15 @@ export default function HomePage() {
 
     return () => clearInterval(interval);
   }, [message]);
+
+  useEffect(() => {
+    if (!isHydrated) return;
+
+    const lockedForPayment =
+      access.freeUsed && !access.subscriptionActive && access.paidUnlocks === 0;
+
+    setShowPaywall(lockedForPayment);
+  }, [access, isHydrated]);
 
   const allowed =
     !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
@@ -87,7 +96,6 @@ export default function HomePage() {
 
     setLoading(true);
     setMessage("");
-    setShowPaywall(false);
 
     try {
       const res = await fetch("/api/generate", {
@@ -242,8 +250,8 @@ export default function HomePage() {
           </div>
         )}
 
-        {!displayedText &&
-          isHydrated &&
+        {isHydrated &&
+          !displayedText &&
           access.freeUsed &&
           !access.subscriptionActive &&
           access.paidUnlocks > 0 && (
@@ -263,7 +271,7 @@ export default function HomePage() {
           !access.subscriptionActive &&
           access.paidUnlocks === 0 && (
             <div style={{ marginTop: "30px", textAlign: "center" }}>
-              <p>You felt that one, didn’t you?</p>
+              <p>Your next message is locked.</p>
 
               <div
                 style={{
@@ -273,7 +281,7 @@ export default function HomePage() {
                 }}
               >
                 <button onClick={() => handleCheckout("single")}>
-                  Buy 1 More
+                  Pay $2.50 for Next Message
                 </button>
                 <button onClick={() => handleCheckout("sub")}>
                   Subscribe

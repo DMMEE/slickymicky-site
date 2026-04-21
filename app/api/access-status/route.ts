@@ -27,16 +27,11 @@ export async function GET() {
       paidUnlocks: Number.isFinite(paidUnlocks) ? paidUnlocks : 0,
       subscriptionActive,
     });
-  } catch (error) {
-    console.error("ACCESS STATUS ERROR:", error);
-
-    return NextResponse.json(
-      {
-        freeUsed: false,
-        paidUnlocks: 0,
-        subscriptionActive: false,
-      },
-      { status: 200 }
-    );
+  } catch {
+    return NextResponse.json({
+      freeUsed: false,
+      paidUnlocks: 0,
+      subscriptionActive: false,
+    });
   }
 }
