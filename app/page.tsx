@@ -69,8 +69,15 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [message]);
 
-  const canReveal =
-    !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
+  const isLocked =
+    access.freeUsed &&
+    access.paidUnlocks === 0 &&
+    !access.subscriptionActive;
+
+  useEffect(() => {
+    if (!isHydrated) return;
+    setShowPaywall(isLocked);
+  }, [isHydrated, isLocked]);
 
   async function handleGenerate() {
     if (loading) return;
@@ -80,7 +87,7 @@ export default function HomePage() {
       return;
     }
 
-    if (!canReveal) {
+    if (isLocked) {
       setShowPaywall(true);
       return;
     }
@@ -110,8 +117,6 @@ export default function HomePage() {
 
       if (!access.freeUsed) {
         await fetch("/api/use-free-reading", { method: "POST" });
-
-        // Immediately lock the next message and show paywall
         setAccess((prev) => ({
           ...prev,
           freeUsed: true,
@@ -119,7 +124,6 @@ export default function HomePage() {
         setShowPaywall(true);
       } else if (access.paidUnlocks > 0 && !access.subscriptionActive) {
         await fetch("/api/use-paid-unlock", { method: "POST" });
-
         setAccess((prev) => ({
           ...prev,
           paidUnlocks: Math.max(0, prev.paidUnlocks - 1),
@@ -222,23 +226,22 @@ export default function HomePage() {
 
           <button
             onClick={handleGenerate}
-            disabled={loading || !canSubmit || (!canReveal && showPaywall)}
+            disabled={loading || !canSubmit || isLocked}
             style={{
               padding: "14px",
               borderRadius: "10px",
               border: "none",
               cursor:
-                loading || !canSubmit || (!canReveal && showPaywall)
+                loading || !canSubmit || isLocked
                   ? "not-allowed"
                   : "pointer",
               background: "#ffffff",
               color: "#000",
               fontWeight: 600,
-              opacity:
-                loading || !canSubmit || (!canReveal && showPaywall) ? 0.7 : 1,
+              opacity: loading || !canSubmit || isLocked ? 0.7 : 1,
             }}
           >
-            {loading ? "Reading..." : "Reveal Message"}
+            {loading ? "Reading..." : isLocked ? "Message Locked" : "Reveal Message"}
           </button>
         </div>
 
