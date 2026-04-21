@@ -14,7 +14,6 @@ export default function HomePage() {
   const [message, setMessage] = useState("");
   const [displayedText, setDisplayedText] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
 
   const [access, setAccess] = useState<AccessState>({
@@ -69,17 +68,14 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [message]);
 
-  useEffect(() => {
-    if (!isHydrated) return;
-
-    const lockedForPayment =
-      access.freeUsed && !access.subscriptionActive && access.paidUnlocks === 0;
-
-    setShowPaywall(lockedForPayment);
-  }, [access, isHydrated]);
-
-  const allowed =
+  const canReveal =
     !access.freeUsed || access.paidUnlocks > 0 || access.subscriptionActive;
+
+  const shouldShowPaywall =
+    isHydrated &&
+    access.freeUsed &&
+    !access.subscriptionActive &&
+    access.paidUnlocks === 0;
 
   async function handleGenerate() {
     if (loading) return;
@@ -89,8 +85,7 @@ export default function HomePage() {
       return;
     }
 
-    if (!allowed) {
-      setShowPaywall(true);
+    if (!canReveal) {
       return;
     }
 
@@ -217,24 +212,27 @@ export default function HomePage() {
             }}
           />
 
-          {isHydrated && (
-            <button
-              onClick={handleGenerate}
-              disabled={loading || !canSubmit}
-              style={{
-                padding: "14px",
-                borderRadius: "10px",
-                border: "none",
-                cursor: loading || !canSubmit ? "not-allowed" : "pointer",
-                background: "#ffffff",
-                color: "#000",
-                fontWeight: 600,
-                opacity: loading || !canSubmit ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Reading..." : "Reveal Message"}
-            </button>
-          )}
+          <button
+            onClick={handleGenerate}
+            disabled={loading || !canSubmit || !canReveal}
+            style={{
+              padding: "14px",
+              borderRadius: "10px",
+              border: "none",
+              cursor:
+                loading || !canSubmit || !canReveal ? "not-allowed" : "pointer",
+              background: "#ffffff",
+              color: "#000",
+              fontWeight: 600,
+              opacity: loading || !canSubmit || !canReveal ? 0.7 : 1,
+            }}
+          >
+            {loading
+              ? "Reading..."
+              : !canReveal
+              ? "Message Locked"
+              : "Reveal Message"}
+          </button>
         </div>
 
         {displayedText && (
@@ -266,29 +264,26 @@ export default function HomePage() {
             </div>
           )}
 
-        {showPaywall &&
-          isHydrated &&
-          !access.subscriptionActive &&
-          access.paidUnlocks === 0 && (
-            <div style={{ marginTop: "30px", textAlign: "center" }}>
-              <p>Your next message is locked.</p>
+        {shouldShowPaywall && (
+          <div style={{ marginTop: "30px", textAlign: "center" }}>
+            <p>Your next message is locked.</p>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
-                }}
-              >
-                <button onClick={() => handleCheckout("single")}>
-                  Pay $2.50 for Next Message
-                </button>
-                <button onClick={() => handleCheckout("sub")}>
-                  Subscribe
-                </button>
-              </div>
+            <div
+              style={{
+                display: "flex",
+                gap: "10px",
+                justifyContent: "center",
+              }}
+            >
+              <button onClick={() => handleCheckout("single")}>
+                Pay $2.50 for Next Message
+              </button>
+              <button onClick={() => handleCheckout("sub")}>
+                Subscribe
+              </button>
             </div>
-          )}
+          </div>
+        )}
 
         <p style={{ marginTop: "40px", fontSize: "12px", opacity: 0.5 }}>
           This website is for entertainment purposes only.
