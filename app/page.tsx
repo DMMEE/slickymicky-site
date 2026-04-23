@@ -94,6 +94,7 @@ export default function HomePage() {
 
     setLoading(true);
     setMessage("");
+    setShowPaywall(false);
 
     try {
       const res = await fetch("/api/generate", {
@@ -117,13 +118,14 @@ export default function HomePage() {
 
       if (!access.freeUsed) {
         await fetch("/api/use-free-reading", { method: "POST" });
+
         setAccess((prev) => ({
           ...prev,
           freeUsed: true,
         }));
-        setShowPaywall(true);
       } else if (access.paidUnlocks > 0 && !access.subscriptionActive) {
         await fetch("/api/use-paid-unlock", { method: "POST" });
+
         setAccess((prev) => ({
           ...prev,
           paidUnlocks: Math.max(0, prev.paidUnlocks - 1),
@@ -241,7 +243,11 @@ export default function HomePage() {
               opacity: loading || !canSubmit || isLocked ? 0.7 : 1,
             }}
           >
-            {loading ? "Reading..." : isLocked ? "Message Locked" : "Reveal Message"}
+            {loading
+              ? "Reading..."
+              : isLocked
+              ? "Message Locked"
+              : "Reveal Message"}
           </button>
         </div>
 
