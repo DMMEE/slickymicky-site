@@ -1,22 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
 export async function POST(req: NextRequest) {
   try {
-    const { type, name, suburb } = await req.json();
+    const secretKey = process.env.STRIPE_SECRET_KEY;
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://slickymicky-site-r5ox.vercel.app/";
-    const priceOneTime = process.env.STRIPE_PRICE_ONE_TIME;
-    const priceSub = process.env.STRIPE_PRICE_SUB;
-
-    if (!process.env.STRIPE_SECRET_KEY) {
+    if (!secretKey) {
       return NextResponse.json(
         { error: "Missing STRIPE_SECRET_KEY" },
         { status: 500 }
       );
     }
+
+    const stripe = new Stripe(secretKey);
+
+    const { type, name, suburb } = await req.json();
+
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const priceOneTime = process.env.STRIPE_PRICE_ONE_TIME;
+    const priceSub = process.env.STRIPE_PRICE_SUB;
 
     if (type !== "single" && type !== "sub") {
       return NextResponse.json(
@@ -58,13 +60,6 @@ export async function POST(req: NextRequest) {
         suburb: typeof suburb === "string" ? suburb : "",
       },
     });
-
-    if (!session.url) {
-      return NextResponse.json(
-        { error: "Stripe did not return a checkout URL." },
-        { status: 500 }
-      );
-    }
 
     return NextResponse.json({ url: session.url });
   } catch (error) {
