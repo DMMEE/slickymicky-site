@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const { type, name, suburb } = await req.json();
 
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://slickymicky.com";
     const priceOneTime = process.env.STRIPE_PRICE_ONE_TIME;
     const priceSub = process.env.STRIPE_PRICE_SUB;
 
