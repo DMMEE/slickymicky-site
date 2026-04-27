@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 import { cookies } from "next/headers";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
-
 const PAID_UNLOCKS_COOKIE = "dmme_paid_unlocks";
 const SUBSCRIPTION_COOKIE = "dmme_subscription_active";
 const CONFIRMED_SESSIONS_COOKIE = "dmme_confirmed_sessions";
@@ -11,6 +9,17 @@ const ONE_YEAR_SECONDS = 60 * 60 * 24 * 365;
 
 export async function POST(req: NextRequest) {
   try {
+    const secretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!secretKey) {
+      return NextResponse.json(
+        { error: "Missing STRIPE_SECRET_KEY" },
+        { status: 500 }
+      );
+    }
+
+    const stripe = new Stripe(secretKey);
+
     const { sessionId } = await req.json();
 
     if (!sessionId || typeof sessionId !== "string") {
