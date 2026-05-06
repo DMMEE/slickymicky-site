@@ -108,7 +108,19 @@ Return only the message.
       );
     }
 
-    return NextResponse.json({ message });
+  const PAYMENT_HOOKS = [
+  "The next message gets closer.",
+  "There’s more to this than you think.",
+  "The next one is more direct.",
+  "You’ll know exactly why if you keep going.",
+  "The next message reveals more.",
+  "This isn’t finished yet.",
+];
+
+const finalMessage = `${message} ${PAYMENT_HOOKS[Math.floor(Math.random() * PAYMENT_HOOKS.length)]}`;
+
+return NextResponse.json({ message: finalMessage });
+
   } catch (error) {
     console.error("GENERATE ERROR:", error);
 
