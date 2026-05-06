@@ -287,20 +287,46 @@ export default function HomePage() {
             <div style={{ marginTop: "30px", textAlign: "center" }}>
               <p>Your next message is locked.</p>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: "10px",
-                  justifyContent: "center",
-                }}
-              >
-                <button onClick={() => handleCheckout("single")}>
-                  Pay $2.50 for Next Message
-                </button>
-                <button onClick={() => handleCheckout("sub")}>
-                  Subscribe
-                </button>
-              </div>
+             <div
+  style={{
+    display: "flex",
+    gap: "12px",
+    justifyContent: "center",
+    marginTop: "10px",
+  }}
+>
+  <button
+    onClick={() => handleCheckout("single")}
+    style={{
+      padding: "14px 20px",
+      borderRadius: "12px",
+      border: "none",
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: "16px",
+      background: "#ffffff",
+      color: "#000",
+    }}
+  >
+    Unlock Next Message — $2.50
+  </button>
+
+  <button
+    onClick={() => handleCheckout("sub")}
+    style={{
+      padding: "14px 20px",
+      borderRadius: "12px",
+      border: "1px solid rgba(255,255,255,0.3)",
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: "16px",
+      background: "transparent",
+      color: "#fff",
+    }}
+  >
+    Unlimited Messages
+  </button>
+</div>
             </div>
           )}
 
