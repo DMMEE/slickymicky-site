@@ -16,6 +16,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [showPaywall, setShowPaywall] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const [access, setAccess] = useState<AccessState>({
     freeUsed: false,
@@ -141,6 +142,11 @@ export default function HomePage() {
   }
 
   async function handleCheckout(type: "single" | "sub") {
+    if (!acceptedTerms) {
+      alert("Please accept the Terms & Conditions and Privacy Policy first.");
+      return;
+    }
+
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -151,6 +157,7 @@ export default function HomePage() {
           type,
           name: name.trim(),
           suburb: suburb.trim(),
+          acceptedTerms: true,
         }),
       });
 
@@ -234,9 +241,7 @@ export default function HomePage() {
               borderRadius: "10px",
               border: "none",
               cursor:
-                loading || !canSubmit || isLocked
-                  ? "not-allowed"
-                  : "pointer",
+                loading || !canSubmit || isLocked ? "not-allowed" : "pointer",
               background: "#ffffff",
               color: "#000",
               fontWeight: 600,
@@ -287,52 +292,137 @@ export default function HomePage() {
             <div style={{ marginTop: "30px", textAlign: "center" }}>
               <p>Your next message is locked.</p>
 
-             <div
-  style={{
-    display: "flex",
-    gap: "12px",
-    justifyContent: "center",
-    marginTop: "10px",
-  }}
->
-  <button
-    onClick={() => handleCheckout("single")}
-    style={{
-      padding: "14px 20px",
-      borderRadius: "12px",
-      border: "none",
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: "16px",
-      background: "#ffffff",
-      color: "#000",
-    }}
-  >
-    Unlock Next Message — $2.50
-  </button>
+              <div style={{ marginTop: "14px" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "center",
+                    gap: "8px",
+                    fontSize: "12px",
+                    opacity: 0.75,
+                    marginBottom: "14px",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={acceptedTerms}
+                    onChange={(e) => setAcceptedTerms(e.target.checked)}
+                    style={{ marginTop: "2px" }}
+                  />
 
-  <button
-    onClick={() => handleCheckout("sub")}
-    style={{
-      padding: "14px 20px",
-      borderRadius: "12px",
-      border: "1px solid rgba(255,255,255,0.3)",
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: "16px",
-      background: "transparent",
-      color: "#fff",
-    }}
-  >
-    Unlimited Messages
-  </button>
-</div>
+                  <span>
+                    I agree to the{" "}
+                    <a
+                      href="/terms"
+                      target="_blank"
+                      style={{ color: "#fff", textDecoration: "underline" }}
+                    >
+                      Terms & Conditions
+                    </a>{" "}
+                    and{" "}
+                    <a
+                      href="/privacy"
+                      target="_blank"
+                      style={{ color: "#fff", textDecoration: "underline" }}
+                    >
+                      Privacy Policy
+                    </a>
+                    .
+                  </span>
+                </label>
+
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "12px",
+                    justifyContent: "center",
+                    marginTop: "10px",
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <button
+                    onClick={() => handleCheckout("single")}
+                    disabled={!acceptedTerms}
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: "12px",
+                      border: "none",
+                      cursor: acceptedTerms ? "pointer" : "not-allowed",
+                      fontWeight: 700,
+                      fontSize: "16px",
+                      background: "#ffffff",
+                      color: "#000",
+                      opacity: acceptedTerms ? 1 : 0.45,
+                    }}
+                  >
+                    Unlock Next Message — $2.50
+                  </button>
+
+                  <button
+                    onClick={() => handleCheckout("sub")}
+                    disabled={!acceptedTerms}
+                    style={{
+                      padding: "14px 20px",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255,255,255,0.3)",
+                      cursor: acceptedTerms ? "pointer" : "not-allowed",
+                      fontWeight: 700,
+                      fontSize: "16px",
+                      background: "transparent",
+                      color: "#fff",
+                      opacity: acceptedTerms ? 1 : 0.45,
+                    }}
+                  >
+                    Unlimited Messages
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 
-        <p style={{ marginTop: "40px", fontSize: "12px", opacity: 0.5 }}>
-          This website is for entertainment purposes only.
-        </p>
+        <footer
+          style={{
+            marginTop: "40px",
+            fontSize: "12px",
+            opacity: 0.55,
+            textAlign: "center",
+          }}
+        >
+          <p>This website is for entertainment purposes only.</p>
+
+          <div
+            style={{
+              marginTop: "10px",
+              display: "flex",
+              justifyContent: "center",
+              gap: "14px",
+              flexWrap: "wrap",
+            }}
+          >
+            <a
+              href="/terms"
+              style={{ color: "#fff", textDecoration: "underline" }}
+            >
+              Terms & Conditions
+            </a>
+
+            <a
+              href="/privacy"
+              style={{ color: "#fff", textDecoration: "underline" }}
+            >
+              Privacy Policy
+            </a>
+
+            <a
+              href="mailto:support@slickymicky.com"
+              style={{ color: "#fff", textDecoration: "underline" }}
+            >
+              Contact
+            </a>
+          </div>
+        </footer>
       </div>
     </main>
   );
