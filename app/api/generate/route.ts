@@ -1,34 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 
-const LINES = [
-  "{name}, someone in {suburb} keeps looking a little longer than they should.",
-  "You caught someone’s attention in {suburb}, {name}. They haven’t dropped it.",
-  "{name}, someone in {suburb} is definitely noticing you more than once.",
-  "You’ve been on someone’s mind in {suburb}, {name}. Not in a casual way.",
-  "{name}, someone in {suburb} likes the way you carry yourself.",
-  "There’s someone in {suburb} thinking about you again, {name}.",
-  "{name}, someone in {suburb} keeps remembering you at the wrong moments.",
-  "You made an impression in {suburb}, {name}. It stuck a little too well.",
-];
-
-const ENDINGS = [
-  "You’d know exactly who if you thought about it.",
-  "They’re not as subtle as they think.",
-  "It’s not as quiet as they believe.",
-  "You’ve probably noticed it too.",
-  "They’re trying not to make it obvious.",
-  "It’s starting to show.",
-  "They’re getting a little careless about it.",
-  "You’re not imagining it.",
+const PAYMENT_HOOKS = [
+  "Slicky knows a little more.",
+  "The next message gets closer.",
+  "There’s more to this than you think.",
+  "The next one is more direct.",
+  "You might want to hear what comes next.",
+  "This isn’t finished yet.",
 ];
 
 function pick<T>(arr: T[]) {
   return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function fill(str: string, name: string, suburb: string) {
-  return str.replaceAll("{name}", name).replaceAll("{suburb}", suburb);
 }
 
 export async function POST(req: NextRequest) {
@@ -53,44 +36,73 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
 
-    const seedLine = fill(pick(LINES), name, suburb);
-    const seedEnding = pick(ENDINGS);
-
     const prompt = `
-You are writing a short, simple, slightly eerie and flirty message.
+You are Slicky Micky.
 
-Rules:
-- 1 or 2 sentences only
-- 12–20 words total
-- Very direct and natural
-- No poetic language
-- No fluff
-- No explanations
-- No emojis
-- No hashtags
-- No mention of AI
-- Do not sound creepy or aggressive
-- Focus on attention, attraction, being noticed, or being wanted
-- Make it slightly blush-inducing
+You write short, addictive, personal messages that feel seductive, mysterious, and slightly unsettling in a playful way.
 
-Use this as inspiration, but rewrite naturally:
-${seedLine} ${seedEnding}
-
+The user gives you:
 Name: ${name}
 Suburb: ${suburb}
+
+Your message should feel like Slicky knows just enough to make them curious.
+
+STYLE:
+- Personal
+- Flirty
+- Seductive
+- Smooth
+- Mysterious
+- Slightly eerie
+- Natural, not poetic
+- Make them want another message
+
+RULES:
+- 1 sentence only
+- 14 to 24 words total
+- Use their name naturally
+- Sometimes use their suburb, but only if it sounds natural
+- No emojis
+- No hashtags
+- No AI mention
+- No explanation
+- No threats
+- No aggressive wording
+- No sexual explicit content
+- No claiming to actually watch, track, stalk, or know private facts
+- No horoscope language
+- No generic motivation
+
+GOOD EXAMPLES:
+"Michael, someone keeps pretending they forgot you, but their mind gives them away at the worst times."
+
+"Jess, there’s someone who acts calm around you, but notices every little change."
+
+"Sarah from Richmond, someone remembers your energy more clearly than they probably should."
+
+"Daniel, someone gets quieter when your name comes up, and that says more than they realise."
+
+"Emma, someone is trying very hard not to seem interested, but they are losing that little game."
+
+BAD EXAMPLES:
+"You will find love soon."
+"The universe has a plan for you."
+"I am watching you."
+"Someone is stalking you."
+"You are entering a new chapter."
 
 Return only the message.
 `;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 1.1,
-      max_tokens: 60,
+      temperature: 1.15,
+      max_tokens: 80,
       messages: [
         {
           role: "system",
           content:
-            "You write short, direct, flirty and slightly eerie lines that feel real and make people want another.",
+            "You are Slicky Micky, a seductive, mysterious entertainment character who writes short personal messages that create curiosity.",
         },
         {
           role: "user",
@@ -108,19 +120,9 @@ Return only the message.
       );
     }
 
-  const PAYMENT_HOOKS = [
-  "The next message gets closer.",
-  "There’s more to this than you think.",
-  "The next one is more direct.",
-  "You’ll know exactly why if you keep going.",
-  "The next message reveals more.",
-  "This isn’t finished yet.",
-];
+    const finalMessage = `${message} ${pick(PAYMENT_HOOKS)}`;
 
-const finalMessage = `${message} ${PAYMENT_HOOKS[Math.floor(Math.random() * PAYMENT_HOOKS.length)]}`;
-
-return NextResponse.json({ message: finalMessage });
-
+    return NextResponse.json({ message: finalMessage });
   } catch (error) {
     console.error("GENERATE ERROR:", error);
 
