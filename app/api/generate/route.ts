@@ -36,109 +36,93 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
 
-    const messageNumber = history.length + 1;
+    const cleanHistory = Array.isArray(history)
+      ? history.filter((item) => typeof item === "string").slice(-6)
+      : [];
+
+    const messageNumber = cleanHistory.length + 1;
+
+    const previousMessagesText = cleanHistory.length
+      ? cleanHistory.map((msg, index) => `${index + 1}. ${msg}`).join("\n")
+      : "No previous messages.";
 
     const prompt = `
 You are Slicky Micky.
 
-You create short mysterious entertainment messages.
+You write short mysterious entertainment messages.
 
-The user believes they are unlocking the next part of a mystery.
+IMPORTANT:
+The user's name MUST appear in every message.
 
-User:
-Name: ${name}
-Suburb: ${suburb}
+User name:
+${name}
 
-This is message number:
+User suburb:
+${suburb}
+
+Message number:
 ${messageNumber}
 
-Previous Slicky messages:
-${history.length ? history.join("\n") : "No previous messages."}
+Previous messages:
+${previousMessagesText}
 
 Your job:
-Continue the same storyline.
+Write the NEXT message in the same storyline.
 
-DO NOT restart.
-DO NOT create a random new story.
-The new message must feel connected to the previous messages.
+This must feel like a continuation, not a new reading.
 
-STORY FLOW:
+CONTINUATION RULES:
+- If this is message 1, introduce that someone has noticed ${name}.
+- If this is message 2, directly refer to the first message using words like "the person I mentioned", "that person", or "the one I hinted at".
+- If this is message 3, refer to the previous message using words like "that small moment", "what happened before", or "the thing they remembered".
+- If this is message 4, refer to hesitation, timing, or something left unsaid.
+- If this is message 5 or more, continue deepening the same mystery.
 
-Message 1:
-Hint that someone has noticed them.
+STRICT RULES:
+- ONE sentence only.
+- 14 to 26 words total.
+- Must include the name "${name}".
+- Must continue from the previous messages.
+- Do not create a new unrelated person.
+- Do not restart the story.
+- Do not contradict the previous messages.
+- Do not identify a real person.
+- Do not claim to actually know private information.
+- Do not say you are watching, tracking, following, or stalking them.
+- No threats.
+- No sexual explicit wording.
+- No emojis.
+- No hashtags.
+- No explanation.
+- No horoscope language.
+- Return only the message.
 
-Message 2:
-Suggest this person is not completely random.
-
-Message 3:
-Hint at a small interaction, moment, conversation, or memory.
-
-Message 4:
-Suggest hesitation or something unsaid.
-
-Message 5+:
-Go deeper into the mystery without revealing a person.
-
-STYLE:
-- Personal
-- Flirty
-- Smooth
-- Mysterious
-- Slightly eerie
-- Addictive
-- Natural conversation style
-
-RULES:
-- ONE sentence only
-- 14 to 24 words
-- Use their name naturally
-- Use suburb sometimes only
-- Never identify an actual person
-- Never claim real knowledge
-- Never say you are watching them
-- No stalking language
-- No threats
-- No explicit sexual wording
-- No horoscope wording
-- No emojis
-- No hashtags
-- No explanation
-- Do not repeat previous messages
-
-GOOD EXAMPLES:
+EXAMPLES OF LINKED MESSAGES:
 
 Message 1:
-"Michael, someone around Richmond has noticed you more than once, and it probably is not who you expect."
+"${name}, someone around ${suburb} has noticed you more than once, and it probably is not who you expect."
 
 Message 2:
-"The interesting thing Michael, is this person is not completely new; there has already been a small moment between you."
+"${name}, the person I mentioned before is not completely random; there has already been a small moment between you."
 
 Message 3:
-"That moment was simple, maybe a look or conversation, but something about it stayed with them longer than expected."
+"${name}, that small moment stayed with them longer than they expected, even if you barely thought about it."
 
 Message 4:
-"Michael, they have thought about saying something before, but timing has made them hold back."
+"${name}, they have thought about saying something before, but the timing keeps making them hesitate."
 
-BAD EXAMPLES:
-
-"I know who likes you."
-"I am watching you."
-"Someone followed you."
-"The universe is sending love."
-"Your soulmate is coming."
-
-Return ONLY the next Slicky Micky message.
+Now write message number ${messageNumber}.
 `;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 1.05,
+      temperature: 0.85,
       max_tokens: 80,
       messages: [
         {
           role: "system",
           content:
-            "You are Slicky Micky. Continue mysterious entertainment storylines while keeping them playful and safe.",
+            "You are Slicky Micky. You must continue the same storyline and include the user's name in every message.",
         },
         {
           role: "user",
@@ -147,7 +131,7 @@ Return ONLY the next Slicky Micky message.
       ],
     });
 
-    const message = response.choices[0]?.message?.content?.trim();
+    let message = response.choices[0]?.message?.content?.trim();
 
     if (!message) {
       return NextResponse.json(
@@ -156,12 +140,15 @@ Return ONLY the next Slicky Micky message.
       );
     }
 
+    if (!message.toLowerCase().includes(name.toLowerCase())) {
+      message = `${name}, ${message.charAt(0).toLowerCase()}${message.slice(1)}`;
+    }
+
     const finalMessage = `${message} ${pick(PAYMENT_HOOKS)}`;
 
     return NextResponse.json({
       message: finalMessage,
     });
-
   } catch (error) {
     console.error("GENERATE ERROR:", error);
 
