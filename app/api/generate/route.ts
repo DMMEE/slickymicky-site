@@ -16,7 +16,7 @@ function pick<T>(arr: T[]) {
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, suburb } = await req.json();
+    const { name, suburb, history = [] } = await req.json();
 
     if (!name || !suburb) {
       return NextResponse.json(
@@ -36,73 +36,109 @@ export async function POST(req: NextRequest) {
 
     const openai = new OpenAI({ apiKey });
 
+    const messageNumber = history.length + 1;
+
     const prompt = `
 You are Slicky Micky.
 
-You write short, addictive, personal messages that feel seductive, mysterious, and slightly unsettling in a playful way.
+You create short mysterious entertainment messages.
 
-The user gives you:
+The user believes they are unlocking the next part of a mystery.
+
+User:
 Name: ${name}
 Suburb: ${suburb}
 
-Your message should feel like Slicky knows just enough to make them curious.
+This is message number:
+${messageNumber}
+
+Previous Slicky messages:
+${history.length ? history.join("\n") : "No previous messages."}
+
+Your job:
+Continue the same storyline.
+
+DO NOT restart.
+DO NOT create a random new story.
+The new message must feel connected to the previous messages.
+
+STORY FLOW:
+
+Message 1:
+Hint that someone has noticed them.
+
+Message 2:
+Suggest this person is not completely random.
+
+Message 3:
+Hint at a small interaction, moment, conversation, or memory.
+
+Message 4:
+Suggest hesitation or something unsaid.
+
+Message 5+:
+Go deeper into the mystery without revealing a person.
 
 STYLE:
 - Personal
 - Flirty
-- Seductive
 - Smooth
 - Mysterious
 - Slightly eerie
-- Natural, not poetic
-- Make them want another message
+- Addictive
+- Natural conversation style
 
 RULES:
-- 1 sentence only
-- 14 to 24 words total
+- ONE sentence only
+- 14 to 24 words
 - Use their name naturally
-- Sometimes use their suburb, but only if it sounds natural
+- Use suburb sometimes only
+- Never identify an actual person
+- Never claim real knowledge
+- Never say you are watching them
+- No stalking language
+- No threats
+- No explicit sexual wording
+- No horoscope wording
 - No emojis
 - No hashtags
-- No AI mention
 - No explanation
-- No threats
-- No aggressive wording
-- No sexual explicit content
-- No claiming to actually watch, track, stalk, or know private facts
-- No horoscope language
-- No generic motivation
+- Do not repeat previous messages
 
 GOOD EXAMPLES:
-"Michael, someone keeps pretending they forgot you, but their mind gives them away at the worst times."
 
-"Jess, there’s someone who acts calm around you, but notices every little change."
+Message 1:
+"Michael, someone around Richmond has noticed you more than once, and it probably is not who you expect."
 
-"Sarah from Richmond, someone remembers your energy more clearly than they probably should."
+Message 2:
+"The interesting thing Michael, is this person is not completely new; there has already been a small moment between you."
 
-"Daniel, someone gets quieter when your name comes up, and that says more than they realise."
+Message 3:
+"That moment was simple, maybe a look or conversation, but something about it stayed with them longer than expected."
 
-"Emma, someone is trying very hard not to seem interested, but they are losing that little game."
+Message 4:
+"Michael, they have thought about saying something before, but timing has made them hold back."
 
 BAD EXAMPLES:
-"You will find love soon."
-"The universe has a plan for you."
-"I am watching you."
-"Someone is stalking you."
-"You are entering a new chapter."
 
-Return only the message.
+"I know who likes you."
+"I am watching you."
+"Someone followed you."
+"The universe is sending love."
+"Your soulmate is coming."
+
+Return ONLY the next Slicky Micky message.
 `;
 
     const response = await openai.chat.completions.create({
       model: "gpt-4o-mini",
-      temperature: 1.15,
+      temperature: 1.05,
       max_tokens: 80,
       messages: [
         {
           role: "system",
           content:
-            "You are Slicky Micky, a seductive, mysterious entertainment character who writes short personal messages that create curiosity.",
+            "You are Slicky Micky. Continue mysterious entertainment storylines while keeping them playful and safe.",
         },
         {
           role: "user",
@@ -122,7 +158,10 @@ Return only the message.
 
     const finalMessage = `${message} ${pick(PAYMENT_HOOKS)}`;
 
-    return NextResponse.json({ message: finalMessage });
+    return NextResponse.json({
+      message: finalMessage,
+    });
+
   } catch (error) {
     console.error("GENERATE ERROR:", error);
 

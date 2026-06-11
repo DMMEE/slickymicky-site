@@ -8,6 +8,8 @@ type AccessState = {
   subscriptionActive: boolean;
 };
 
+const HISTORY_KEY = "slicky_message_history";
+
 export default function HomePage() {
   const [name, setName] = useState("");
   const [suburb, setSuburb] = useState("");
@@ -27,6 +29,27 @@ export default function HomePage() {
   const canSubmit = useMemo(() => {
     return name.trim().length > 0 && suburb.trim().length > 0;
   }, [name, suburb]);
+
+  function getMessageHistory() {
+    if (typeof window === "undefined") return [];
+
+    try {
+      const saved = localStorage.getItem(HISTORY_KEY);
+      const parsed = saved ? JSON.parse(saved) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveMessageHistory(nextMessage: string) {
+    if (typeof window === "undefined") return;
+
+    const history = getMessageHistory();
+    const updatedHistory = [...history, nextMessage].slice(-10);
+
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(updatedHistory));
+  }
 
   async function refreshAccess() {
     try {
@@ -98,6 +121,8 @@ export default function HomePage() {
     setShowPaywall(false);
 
     try {
+      const history = getMessageHistory();
+
       const res = await fetch("/api/generate", {
         method: "POST",
         headers: {
@@ -106,6 +131,7 @@ export default function HomePage() {
         body: JSON.stringify({
           name: name.trim(),
           suburb: suburb.trim(),
+          history,
         }),
       });
 
@@ -116,6 +142,7 @@ export default function HomePage() {
       }
 
       setMessage(data.message);
+      saveMessageHistory(data.message);
 
       if (!access.freeUsed) {
         await fetch("/api/use-free-reading", { method: "POST" });
